@@ -1,10 +1,28 @@
 # Azure Runbook utilities
 
-This library is intended to be run into an Azure Runbook using **Python 3**.
+This library is intended to be run within an Azure Runbook using **Python 3**.
 
-# Utilities
+## Build instructions
 
-## VM Power Schedule
+You can create a wheel file by following the below steps
+
+* Download or clone this repository.
+* Run the below commands to create the package and install using pip.
+
+```bash
+python setup.py sdist bdist_wheel
+pip install .
+```
+
+## Dependencies
+
+The following packages need to be uploaded to the Azure Automation Account:
+
+* pytz==2021.1
+
+## Utilities
+
+### VM Power Schedule
 
 This utility allows to schedule a power on/off cycle by setting tags on VM instance type resources.
 
@@ -17,7 +35,7 @@ If the VM instance is outside the time range and its status is `VM running` it w
 You can setup an hourly schedule basis, so it will check every hour for the correct power status of all VMs in the
 subscription.
 
-### Tags implemented
+#### Tags implemented
 
 |Tag name|Value|Default|Example|Description|
 |--------|-----|-------|-------|-----------|
@@ -26,7 +44,7 @@ subscription.
 |VMPowerDays|string|1,2,3,4|1,3,5,7|Set the days (separated by any character) in which the action should be performed|
 |VMPowerSkip|any|1|-|Skip the VM while this tag is set|
 
-### Power transitions implemented:
+#### Power transitions implemented
 
 |Between time range|Initial Status|Final status|Description|
 |:------------------:|--------------|------------|-----------|
@@ -34,9 +52,9 @@ subscription.
 |Yes|VM stopped|VM running|You'd be billed for the instance|
 |No|VM running|VM deallocated|You wouldn't be billed for the instance|
 
-**Note: please be aware that a time range between two days won't trigger any action if the scheduled days don't match.**
+**Please note that a time range between two days won't trigger any action if the scheduled days don't match.**
 
-### Usage
+#### Example usage
 
 The first step is to upload the utilities package and dependencies to Python packages (under Shared Resources) in the
 Azure Automation Account.
@@ -50,7 +68,10 @@ vm_power_schedule = vm_ops.VmPowerSchedule(False)  # Set to True if you need to 
 vm_power_schedule.run()
 ```
 
-# Development
+## Development
 
-In order to develop your own implementation, you need to install and configure the Azure Automation python emulated
-assets from https://github.com/azureautomation/python_emulated_assets.
+In order to develop your own implementation, you will need:
+
+* Install and configure the Azure Automation python emulated assets
+  from https://github.com/azureautomation/python_emulated_assets.
+* Install the requirements
