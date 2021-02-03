@@ -1,0 +1,9 @@
+__title__ = 'azure-runbook-util'
+__description__ = "Runbook utilities for Azure automation tasks."
+__url__ = "https://github.com/nuxsmin/azure_runbook_util"
+__version__ = "0.1.4"
+__build__ = 21020305
+__author__ = "Rubén D."
+__author_email__ = 'nuxsmin@gmail.com'
+__license__ = "GPLv3"
+__copyright__ = "Copyright 2021 Rubén D."
