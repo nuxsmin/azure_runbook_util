@@ -1,12 +1,15 @@
 import logging
+import os
 import re
 
 import azure.mgmt.compute
 import azure.mgmt.resource
 
 from azure_runbook_util import util
-from azure_runbook_util.azure_credentials import azure_credential, runas_connection
 from azure_runbook_util.ops_base import OpsBase
+
+if not os.getenv("GITHUB_RUN_ID"):
+    from azure_runbook_util.azure_credentials import azure_credential, runas_connection
 
 _VM_STATUS_RUNNING = "VM running"
 _VM_STATUS_DEALLOCATED = "VM deallocated"
