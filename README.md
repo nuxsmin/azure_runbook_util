@@ -1,3 +1,7 @@
+![Python package](https://github.com/nuxsmin/azure_runbook_util/workflows/Python%20package/badge.svg)
+
+---
+
 # Azure Runbook utilities
 
 This library is intended to be run within an Azure Runbook using **Python 3**.
