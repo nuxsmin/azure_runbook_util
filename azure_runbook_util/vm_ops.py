@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 
 import azure.mgmt.compute
@@ -7,16 +6,17 @@ import azure.mgmt.resource
 
 from azure_runbook_util import util
 from azure_runbook_util.azure_credentials import azure_credential, runas_connection
+from azure_runbook_util.ops_base import OpsBase
 
 _VM_STATUS_RUNNING = "VM running"
 _VM_STATUS_DEALLOCATED = "VM deallocated"
 _VM_STATUS_STOPPED = "VM stopped"
-_TAG_POWER_OFF = os.getenv("TAG_POWER_OFF", "VMPowerOff")
-_TAG_POWER_ON = os.getenv("TAG_POWER_ON", "VMPowerOn")
-_TAG_POWER_SKIP = os.getenv("TAG_POWER_SKIP", "VMPowerSkip")
-_TAG_POWER_DAYS = os.getenv("TAG_POWER_DAYS", "VMPowerDays")
-_DEFAULT_DAYS = list(range(0, 4))
-_DAYS_REGEX = re.compile("([1-7]){1,7}")
+_TAG_POWER_OFF = "VMPowerOff"
+_TAG_POWER_ON = "VMPowerOn"
+_TAG_POWER_SKIP = "VMPowerSkip"
+_TAG_POWER_DAYS = "VMPowerDays"
+_DEFAULT_DAYS = list(range(0, 5))
+_DAYS_REGEX = re.compile("[1-7]{1,7}(?=[|,\\s\\-]|$)")
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +82,38 @@ class VmPowerProcess:
         return list(cls._done["power_off"])
 
 
-class VmPowerSchedule:
+class VmPowerTags:
+    def __init__(self,
+                 on: str = _TAG_POWER_ON,
+                 off: str = _TAG_POWER_OFF,
+                 skip: str = _TAG_POWER_SKIP,
+                 days: str = _TAG_POWER_DAYS) -> None:
+        self.days = days
+        self.skip = skip
+        self.off = off
+        self.on = on
 
-    def __init__(self, wait_for_action: bool = False) -> None:
-        self.now = util.get_now_for_timezone()
+
+class VmPowerSchedule(OpsBase):
+    def __init__(self,
+                 dry_run: bool = False,
+                 debug: bool = False,
+                 wait_for_action: bool = False,
+                 power_tags: VmPowerTags = VmPowerTags()) -> None:
+        """
+        :param dry_run: Perform a trial run with no changes made
+        :param debug: Set logging level to DEBUG
+        :param wait_for_action: Set to True to perform synchronous power cycle actions
+        :param power_tags: An instance of VmPowerTags that holds the name of the tags to lookup
+        """
+        super().__init__(dry_run, debug, wait_for_action)
+
         self.vms_process = VmPowerProcess()
-        self.wait_for_action = wait_for_action
         self.compute_client = None
+        self.power_tags = power_tags
+
+        if debug:
+            logger.setLevel(logging.DEBUG)
 
     def run(self) -> None:
         """
@@ -111,11 +136,12 @@ class VmPowerSchedule:
 
             if vm.tags:
                 logger.debug("Getting tags from VM (%s)", vm.name)
+                logger.debug("Lookup tags: %s", self.power_tags.__dict__)
 
-                tag_off = vm.tags.get(_TAG_POWER_OFF)
-                tag_on = vm.tags.get(_TAG_POWER_ON)
-                tag_days = vm.tags.get(_TAG_POWER_DAYS)
-                tag_skip = vm.tags.get(_TAG_POWER_SKIP)
+                tag_off = vm.tags.get(self.power_tags.off)
+                tag_on = vm.tags.get(self.power_tags.on)
+                tag_days = vm.tags.get(self.power_tags.days)
+                tag_skip = vm.tags.get(self.power_tags.skip)
 
                 if tag_skip:
                     self.vms_process.skip_by_tag(vm.id)
@@ -152,11 +178,11 @@ class VmPowerSchedule:
                     power_off=tag_off
                 )
 
-                logger.info("%s", util.get_json(message))
+                logger.info("power.vm_data %s", util.get_json(message))
             else:
                 self.vms_process.skip_by_tag(vm.id)
 
-        logger.info("%s", util.get_json(self.get_stats()))
+        logger.info("power.stats %s", util.get_json(self.get_stats()))
 
     def get_statuses(self, resource_group: str, vm) -> tuple:
         """
@@ -201,6 +227,10 @@ class VmPowerSchedule:
 
             self.vms_process.done_power_off(vm.id)
 
+            if self.dry_run:
+                logger.info("Dry run. Work ends here.")
+                return True
+
             async_action = self.compute_client.virtual_machines.deallocate(resource_group, vm.name)
 
             if self.wait_for_action:
@@ -212,6 +242,10 @@ class VmPowerSchedule:
             logger.info("Action: Power ON")
 
             self.vms_process.done_power_on(vm.id)
+
+            if self.dry_run:
+                logger.info("Dry run. Work ends here.")
+                return True
 
             async_action = self.compute_client.virtual_machines.start(resource_group, vm.name)
 
@@ -237,9 +271,11 @@ class VmPowerSchedule:
 
             return weekday in scheduled_days
 
-        logger.debug("Defaulting scheduled days to %s", _DEFAULT_DAYS)
+        default_days = tuple(map(lambda o: int(o) + 1, _DEFAULT_DAYS))
 
-        return weekday in _DEFAULT_DAYS
+        logger.debug("Defaulting scheduled days to: %s", default_days)
+
+        return weekday in default_days
 
     def get_stats(self):
         """

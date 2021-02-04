@@ -41,7 +41,7 @@ subscription.
 |--------|-----|-------|-------|-----------|
 |VMPowerOn|number|-|23|Set the hour in which the VM should be powered ON|
 |VMPowerOff|number|-|4|Set the hour in which the VM should be powered OFF|
-|VMPowerDays|string|1,2,3,4|1,3,5,7|Set the days (separated by any character) in which the action should be performed|
+|VMPowerDays|string|1,2,3,4|1,3,5,7|Set the days (separated by `commas`, `pipes` , `dashes` or `spaces`) in which the action should be performed|
 |VMPowerSkip|any|1|-|Skip the VM while this tag is set|
 
 #### Power transitions implemented
@@ -59,12 +59,32 @@ subscription.
 The first step is to upload the utilities package and dependencies to Python packages (under Shared Resources) in the
 Azure Automation Account.
 
-The next step is to create a **Python 3** Runbook with the following code:
+The next step is to create a **Python 3** Runbook with the following code (using default values):
 
 ```python
 from azure_runbook_util import vm_ops
 
-vm_power_schedule = vm_ops.VmPowerSchedule(False)  # Set to True if you need to perform synchronous power cycle actions 
+vm_power_schedule = vm_ops.VmPowerSchedule()
+vm_power_schedule.run()
+```
+
+Or using custom values:
+
+```python
+from azure_runbook_util import vm_ops
+
+vm_power_tags = vm_ops.VmPowerTags(
+    on="CustomTagOn",
+    off="CustomTagOff",
+    skip="CustomTagSkip",
+    days="CustomTagDays",
+)
+vm_power_schedule = vm_ops.VmPowerSchedule(
+  power_tags=vm_power_tags,  # An instance of VmPowerTags that holds the name of the tags to lookup
+  debug=True, # Set logging level to DEBUG
+  dry_run=True, # Perform a trial run with no changes made
+  wait_for_action=True # Set to True to perform synchronous power cycle actions
+)
 vm_power_schedule.run()
 ```
 

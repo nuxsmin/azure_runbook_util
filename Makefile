@@ -16,7 +16,10 @@ flake8:
 coverage:
 	pipenv run py.test --cov-config .coveragerc --verbose --cov-report term --cov-report xml --cov=requests tests
 
-publish:
+build:
+	python setup.py sdist bdist_wheel
+
+publish: build
 	pip install 'twine>=1.5.0'
 	python setup.py sdist bdist_wheel
 	twine upload dist/*
